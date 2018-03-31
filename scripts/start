@@ -1,76 +1,205 @@
-#!/usr/bin/env node
+#!/usr/bin/env bash
 
-var readFileSync = require('fs').readFileSync
-var spawn        = require('child_process').spawn
-
-var processArguments = require('./processArguments')
+# This script compiles from scratch a Node.js executable and its needed
+# libraries and shell utils to offer a Node.js REPL from cold boot
 
 
-const QEMU_SYSTEM = require('qemu')+'/bin/qemu-system-'
+set -o pipefail
 
 
-var args = processArguments(process.argv.slice(2))
+while getopts ":b:l:o:p:r:" opt; do
+  case $opt in
+    b)
+      BINARY="$OPTARG"  # Location of the binary executable inside the initramfs
+    ;;
 
-var cpu = args.cpu
-var machine = args.machine
+    l)
+      LINUX="$OPTARG"  # Location of the (probably patched) Linux kernel sources
+    ;;
 
-var append =
-[
-  'ip=dhcp'
-]
-var graphicFlag
+    o)
+      OUT_INITRAM="$OPTARG"  # Location of the output initramfs image
+    ;;
 
-switch(process.argv[2])
-{
-  case 'nographic':
-    append.push('console=ttyS0')  // redirect to terminal
-    graphicFlag = 'nographic'
-  break
+    p)
+      BINARY_PATH="$OPTARG"  # Location of the binary executable
+    ;;
 
-  case 'curses':
-    append.push('vga=extended')  // 80x50
-    graphicFlag = 'curses'
-  break
+    r)
+      SRC_RELEASE="$OPTARG"  # Location of the OS release info file
+    ;;
+  esac
+done
 
-  default:
-    append.push('vga=0x344')  // 1024x768x32
-}
+if [[ -z "$OUT_INITRAM" ]]; then
+  echo "-o is mandatory"
+  exit 1
+fi
 
-var command = QEMU_SYSTEM+args.cpu_family
+if [[ -z "$BINARY_PATH" ]]; then
+  echo "-p is mandatory"
+  exit 2
+fi
 
-var args =
-[
-  '-enable-kvm',
-  '-vga', 'std',
-  '-m', '256M',
-  '-redir', 'tcp:50080::80',
-  '-redir', 'tcp:50443::443',
-  '--kernel', 'out/'+cpu+'/linux/bzImage',
-  '-append',  append.join(' ')
-]
 
-if(machine) args.unshift('-machine', machine)
+if [[ -z "$BINARY" ]]; then
+  BINARY=/bin/init
+fi
 
-if(graphicFlag)
-  args.push('-'+graphicFlag)
 
-// check if kvm is supported
-var kvm = /(vmx|svm)/;
-var contents = "";
+TOOLCHAIN=`node -p "require('nodeos-cross-toolchain')"`
 
-try
-{
-  contents = readFileSync('/proc/cpuinfo');
-} catch(e){
-  throw(e);
-}
+source $TOOLCHAIN/scripts/adjustEnvVars.sh || exit $?
 
-if(kvm.test(contents) === false)
-{
-  // disable kvm
-  console.log("Your computer does not support kvm. NodeOS will be slower without it.");
-  args.shift();
-}
+PATH=$TOOLCHAIN/bin:$PATH
 
-spawn(command, args, {stdio: 'inherit'})
-.on('error', console.trace.bind(console))
+
+#
+# Define source code paths
+#
+
+SRC_INIT=`pwd`/deps/init
+LINUX=${LINUX:-`node -p "require('nodeos-linux')"`/linux}
+
+
+#
+# Define steps paths
+#
+
+OBJECTS=`mktemp -d`
+
+OBJ_INIT=$OBJECTS/init
+OBJ_RELEASE=$OBJECTS/os-release
+OBJ_CPIO_TXT=$OBJECTS/cpio.txt
+OBJ_GEN_INIT_CPIO=$OBJECTS/gen_init_cpio
+
+
+#
+# Build cross-compiler (if needed)
+#
+
+(
+  cd $TOOLCHAIN
+
+  LINUX=$LINUX                                                  \
+  BITS=$BITS CPU=$CPU MACHINE=$MACHINE npm install --production || exit $?
+) || exit $?
+
+
+#
+# init
+#
+
+SRC_DIR=$SRC_INIT
+STEP_DIR=$OBJ_INIT
+
+if [[ ! -f $STEP_DIR ]]; then
+  echo -e "${WHT}Compiling init${CLR}"
+
+  # Delete previous initramfs
+  rm -rf $OUT_INITRAM
+
+  (
+#    cd $STEP_DIR
+    cd $SRC_DIR && $MAKE clean  # nodeos-init don't support out-of-tree builds yet
+
+    # Compile
+    CC=$TARGET-gcc \
+    $MAKE          || exit 10
+
+    # Strip binary
+    $TARGET-strip init || exit 11
+  ) || err $?
+
+  # Install
+  mkdir -p `dirname $STEP_DIR` &&
+  cp $SRC_DIR/init $STEP_DIR   || exit 12
+
+  echo -e "${GRN}Successfully compiled init${CLR}"
+fi
+
+
+#
+# OS release
+#
+
+STEP_DIR=$OBJ_RELEASE
+
+if [[ ! -f $STEP_DIR ]]; then
+  # Delete previous initramfs
+  rm -rf $OUT_INITRAM
+
+  mkdir -p `dirname $STEP_DIR`
+
+  # Get info for 'os-release' file
+  if [[ -f $SRC_RELEASE ]]; then
+    source $SRC_RELEASE || err 20
+  fi
+
+  # Set default values for 'os-release' fields
+  if [[ ! $VERSION_ID ]]; then
+    VERSION_ID="(unknown)"
+  fi
+
+  if [[ $CODENAME ]]; then
+    VERSION="$VERSION_ID \($CODENAME\)"
+  else
+    VERSION=$VERSION_ID
+  fi
+
+  if [[ ! $BUILD_ID ]]; then
+    BUILD_ID=`node -p "(new Date()).toISOString().substr(0,10)"`
+  fi
+
+  # Set the 'os-release' file
+  eval "echo \"$(< resources/os-release)\"" > $STEP_DIR || err 21
+fi
+
+
+#
+# Generate initramfs configuration file
+#
+
+STEP_DIR=$OBJ_CPIO_TXT
+
+if [[ ! -f $STEP_DIR ]]; then
+  # Delete previous initramfs
+  rm -rf $OUT_INITRAM
+
+  mkdir -p `dirname $STEP_DIR`
+
+  eval "echo \"$(< resources/cpio.txt)\"" > $STEP_DIR || err 30
+fi
+
+
+#
+# gen_init_cpio
+#
+
+SRC_DIR=$LINUX
+STEP_DIR=$OBJ_GEN_INIT_CPIO
+
+if [[ ! -f $STEP_DIR ]]; then
+  # Delete previous initramfs
+  rmStep $OUT_INITRAM
+
+  (
+    cd $SRC_DIR/usr     &&
+    $MAKE gen_init_cpio || exit 40
+
+    mkdir -p `dirname $STEP_DIR` &&
+    mv gen_init_cpio  $STEP_DIR  || exit 41
+  ) || err $?
+fi
+
+
+#
+# Generate initramfs
+#
+
+STEP_DIR=$OUT_INITRAM
+
+if [[ ! -f $STEP_DIR ]]; then
+  mkdir -p `dirname $STEP_DIR`                        &&
+  $OBJ_GEN_INIT_CPIO $OBJ_CPIO_TXT | gzip > $STEP_DIR || err 50
+fi

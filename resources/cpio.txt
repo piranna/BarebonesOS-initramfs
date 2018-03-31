@@ -10,7 +10,7 @@ dir /sbin 0100 0 0
 
 
 #
-# Console device so we can interact with the system before `devfs` is mounted
+# Console device so we can interact with the system before 'devfs' is mounted
 #
 
 nod /dev/console 0600 0 0 c 5 1
@@ -20,16 +20,15 @@ nod /dev/console 0600 0 0 c 5 1
 # Set init
 #
 
-file  /init      $OBJECTS/init 0100 0 0
-slink /sbin/init /$BINARY      0100 0 0
+file /init $OBJ_INIT 0100 0 0
 
 
 #
-# NodeOS version
+# OS release
 #
 
-dir  /etc                                0555 0 0
-file /etc/os-release $OBJECTS/os-release 0444 0 0
+dir  /etc                         0555 0 0
+file /etc/os-release $OBJ_RELEASE 0444 0 0
 
 
 #
@@ -53,4 +52,5 @@ slink /lib/libstdc++.so.6 libstdc++.so.6.0.21 0444 0 0
 # Main binary
 #
 
-file /$BINARY $BINARY_PATH 0555 0 0
+file  $BINARY   $BINARY_PATH 0555 0 0
+slink /sbin/init $BINARY     0100 0 0
