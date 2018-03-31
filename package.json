@@ -23,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/piranna/BarebonesOS-initramfs/issues"
   },
-  "homepage": "https://github.com/piranna/BarebonesOS-initramfs"
+  "homepage": "https://github.com/piranna/BarebonesOS-initramfs",
+  "devDependencies": {
+    "ci-publish": "^1.3.1"
+  }
 }

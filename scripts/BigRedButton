@@ -13,6 +13,6 @@ eval MACHINE=raspi2     $TEST || exit 3
 # Upload release to GitHub
 #
 
-if [ "$BRANCH_NAME" = "master" && "$NPM_TOKEN" ]; then
+if [[ "$BRANCH_NAME" = "master" && "$NPM_TOKEN" ]]; then
   ci-publish
 fi
