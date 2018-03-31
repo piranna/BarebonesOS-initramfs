@@ -1,6 +1,6 @@
 {
-  "name": "nodeos-barebones",
-  "version": "1.0.0-RC3.1",
+  "name": "barebonesos-initramfs",
+  "version": "1.0.0",
   "scripts": {
     "BigRedButton": "scripts/BigRedButton",
     "build": "scripts/build",
@@ -32,13 +32,13 @@
     "qemu": "^2.9.0",
     "suppose": "^0.6.2"
   },
-  "description": "Generate a NodeOS barebones image",
+  "description": "Generate a BarebonesOS initramfs image",
   "repository": {
     "type": "git",
-    "url": "https://github.com/NodeOS/nodeos-barebones.git"
+    "url": "https://github.com/piranna/BarebonesOS-initramfs.git"
   },
   "bugs": {
-    "url": "https://github.com/NodeOS/nodeos-barebones/issues"
+    "url": "https://github.com/piranna/BarebonesOS-initramfs/issues"
   },
-  "homepage": "https://github.com/NodeOS/nodeos-barebones"
+  "homepage": "https://github.com/piranna/BarebonesOS-initramfs"
 }
