@@ -42,4 +42,4 @@ result=`mktemp`
 
 gunzip -c $OUT_FILE | cpio -i -H newc --to-stdout init > $result || exit 4
 
-file $result | grep -q $LIBC || exit 5
+readelf -l $result | grep -q $CPU_PORT || exit 5
