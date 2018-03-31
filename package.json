@@ -1,6 +1,7 @@
 {
   "name": "barebonesos-initramfs",
   "version": "1.0.0",
+  "bin": "scripts/start",
   "scripts": {
     "BigRedButton": "scripts/BigRedButton",
     "install": "scripts/install.js",
