@@ -1,8 +1,8 @@
-[![Build Status](https://semaphoreci.com/api/v1/piranna/barebonesos/branches/master/badge.svg)](https://semaphoreci.com/piranna/barebonesos)
+[![Build Status](https://semaphoreci.com/api/v1/piranna/barebonesos-initramfs/branches/master/badge.svg)](https://semaphoreci.com/piranna/barebonesos-initramfs)
 
-# Barebones OS
+# BarebonesOS initramfs
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/piranna/barebonesos.svg)](https://greenkeeper.io/)
+[![Greenkeeper badge](https://badges.greenkeeper.io/piranna/barebonesos-initramfs.svg)](https://greenkeeper.io/)
 
 This package will generate an `initramfs` image with the minimal components to
 make a diskless system bootable, suitable to be added into the Linux kernel.
