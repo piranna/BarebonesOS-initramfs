@@ -13,7 +13,7 @@
   "dependencies": {
     "download-manager": "^0.1.4",
     "nodeos-cross-toolchain": "^1.0.0-RC3.1",
-    "nodeos-linux": "^4.15.14"
+    "nodeos-linux": "^4.15.15"
   },
   "description": "Generate a BarebonesOS initramfs image",
   "repository": {
